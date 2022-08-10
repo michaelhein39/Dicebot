@@ -1,27 +1,22 @@
-from hashlib import new
-from player import Player
-from human import Human
-from dumbstatistician import DumbStatistician
-from smartstatistician import SmartStatistician
-from sys import exit, argv
 import time
 import random
 
+from player import Player
 
 class DiceGame:
     def __init__(
-            self, 
-            numDice: int, 
-            verbose: bool, 
-            collect: bool, 
-            players: list[tuple[Player, str]], 
-            scores: dict
-        ) -> None:
+        self, 
+        numDice: int, 
+        verbose: bool, 
+        collect: bool, 
+        players: list[tuple[Player, str]],
+        outputFile: str = None
+    ) -> None:
         self.numDice = numDice
         self.verbose = verbose
         self.collect = collect
         self.players = players
-        self.scores = scores
+        self.outputFile = outputFile
 
 
 
@@ -31,7 +26,7 @@ class DiceGame:
         diceRolls: dict,
         playerTracker: dict,
         toBeDeleted: list = []
-        ) -> None:
+    ) -> None:
         for player in playerTracker:
             if player in toBeDeleted:
                 continue
@@ -47,23 +42,20 @@ class DiceGame:
 
 
 
-    def chooseBadInput(
+    def handleLoseDie(
         self,
-        prevMoves: list[tuple[Player, int, int]],
+        player: tuple[Player, str],
         playerTracker: dict,
+        totalDice: int,
         diceRolls: dict,
         toBeDeleted: list,
-        player: tuple[Player, str],
-        totalDice: int
-        ) -> int:
-        decDice = 0
+        prevMoves: list[tuple[Player, int, int]]
+    ) -> None:
         if self.verbose:
-            print("That was a bad input!")
             print(player[1] + " loses a die and now has " + str(playerTracker[player]-1) + " left")
             time.sleep(2)
         playerTracker[player] -= 1
         totalDice -= 1
-        decDice += 1
         if playerTracker[player] == 0:
             if self.verbose:
                 print(player[1] + " is out of the game")
@@ -71,39 +63,69 @@ class DiceGame:
             toBeDeleted += [player]
         if self.verbose:
             print()
-        if self.verbose and len(diceRolls) > 1:
-            print("There are " + str(totalDice) + " dice left on the table")
-            time.sleep(2)
-            print()
+            if len(diceRolls) > 1:
+                print("There are " + str(totalDice) + " dice left on the table")
+                time.sleep(2)
+                print()
+
         # Empties previous moves list to prep for next round
         prevMoves.clear()
+
         # Re-rolls dice for everybody still in game
         if len(diceRolls) > 1:
             self.rollAllDice(diceRolls, playerTracker, toBeDeleted)
-        # Returns boolean determining whether or not totalDice must be decremented
-        return decDice
 
 
 
-    def chooseMove(
+    # Takes a die away from the player and enters next round if player gives bad input
+    # Returns 1 to indicate totalDice must be decremented by 1
+    def handleBadInput(
         self,
-        move: tuple[str, int, int],
         prevMoves: list[tuple[Player, int, int]],
         playerTracker: dict,
         diceRolls: dict,
         toBeDeleted: list,
         player: tuple[Player, str],
         totalDice: int
-        ) -> int:
-        decDice = 0
-        newQuantity = move[1]
-        newNum = move[2]
-        if prevMoves:   
-            prevQuantity = prevMoves[-1][1]
-            prevNum = prevMoves[-1][2]
+    ) -> int:
+        if self.verbose:
+            print("That was a bad input!")
+
+        # Makes player lose a die and rolls dice for next round
+        self.handleLoseDie(player, playerTracker, totalDice, diceRolls, toBeDeleted, prevMoves)
+
+        # Returns 1 to decrement totalDice by 1 
+        return 1
+
+
+
+    # Continue round by tracking a new move 
+    # Returns an int indicating how much totalDice must be decremented 
+    def handleMove(
+        self,
+        move: tuple[int, int],
+        prevMoves: list[tuple[Player, int, int]],
+        playerTracker: dict,
+        diceRolls: dict,
+        toBeDeleted: list,
+        player: tuple[Player, str],
+        totalDice: int
+    ) -> int:
+        newQuantity, newNum = move
+
+        # Checks for bad input based on previous moves
+        if prevMoves:
+            _, prevQuantity, prevNum = prevMoves[-1]
             if newQuantity < prevQuantity or (newQuantity == prevQuantity and newNum <= prevNum):
-                return self.chooseBadInput(prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
-        prevMoves += [(player, newQuantity, newNum)]
+                # Always returns 1
+                return self.handleBadInput(prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
+        
+        # Checks that move is otherwise valid
+        if newQuantity < 1 or newNum < 1 or newNum > 6:
+            return self.handleBadInput(prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
+
+        # Keeps track of new move and returns 0 so totalDice is NOT decremented
+        prevMoves.append((player, newQuantity, newNum))
         if self.verbose:
             if newQuantity != 1:
                 print(player[1] + " claims there are  " + str(newQuantity) + "  " + str(newNum) + "s")
@@ -111,38 +133,52 @@ class DiceGame:
                 print(player[1] + " claims there is  " + str(newQuantity) + "  " + str(newNum))
             time.sleep(3)
             print()
-        return decDice
+        
+        # Creates csv of totalDice, name of player, # of dice player has, quantity of call,
+        # dice number of call, then how many of each dice value 1-6 in order with 0s when
+        # player has none of that value 
+        if self.collect:
+            with open(self.outputFile, "a") as file:
+                file.write(str(totalDice) + ",")
+                file.write(player[1] + ",")
+                file.write(str(playerTracker[player]) + ",")
+                file.write(str(newQuantity) + ",")
+                file.write(str(newNum) + ",")
+                file.write(str(diceRolls[player].get(1, 0)) + ",")
+                file.write(str(diceRolls[player].get(2, 0)) + ",")
+                file.write(str(diceRolls[player].get(3, 0)) + ",")
+                file.write(str(diceRolls[player].get(4, 0)) + ",")
+                file.write(str(diceRolls[player].get(5, 0)) + ",")
+                file.write(str(diceRolls[player].get(6, 0)) + "\n")
+
+        return 0
 
 
 
-    def chooseBluff(
+    # Ends round with bluff call
+    # Returns 1 indicating that totalDice must be decremented by 1
+    def handleBluff(
         self,
-        move: tuple[str, int, int],
         prevMoves: list[tuple[Player, int, int]],
         playerTracker: dict,
         diceRolls: dict,
         toBeDeleted: list,
         player: tuple[Player, str],
         totalDice: int
-        ) -> int:
-
-        decDice = 0
-
+    ) -> int:
+        # Checks if bluff is called at start of round
         if not prevMoves: 
-            return self.chooseBadInput(prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
+            return self.handleBadInput(prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
 
         if self.verbose:
             print(player[1] + " calls bluff!")
             time.sleep(2)
             print()
 
-        # Previous player
-        prevPlayer = prevMoves[-1][0]
-        # Number in question
-        questioned = prevMoves[-1][2]
-        # Quantity guessed by previous player
-        guessOfQuestioned = prevMoves[-1][1]
-        # Tracks quantity of number in question found among all rolls
+        # Previous player, quantity guessed by previous player, and dice number in question
+        prevPlayer, guessOfQuestioned, questioned = prevMoves[-1]
+
+        # Tracks actual quantity of dice number in question found among all rolls
         totalOfQuestioned = 0
 
         if self.verbose:
@@ -154,17 +190,11 @@ class DiceGame:
                 + str(guessOfQuestioned) + "  " + str(questioned) + "...")
             time.sleep(2)
 
-        # Questioning the quantity of a number other than 6
-        # Looking at the number in question along with wild 6s
-        if questioned != 6:
-            for player_ in diceRolls.keys():
-                totalOfQuestioned += diceRolls[player_].get(questioned, 0)
+        # Tracks the number in question along with wild 6s if necessary
+        for player_ in diceRolls.keys():
+            totalOfQuestioned += diceRolls[player_].get(questioned, 0)
+            if questioned != 6:
                 totalOfQuestioned += diceRolls[player_].get(6, 0)
-        # Questioning how many 6s there are
-        # Looking only at the number of wild 6s
-        else:
-            for player_ in diceRolls.keys():
-                totalOfQuestioned += diceRolls[player_].get(questioned, 0)
         
         # Previous player was right
         if totalOfQuestioned >= guessOfQuestioned:
@@ -175,23 +205,7 @@ class DiceGame:
                     print("And there is  " + str(totalOfQuestioned) + "  " + str(questioned) + "!")
                 time.sleep(2)
                 print()
-                print(player[1] + " loses a die and now has " + str(playerTracker[player]-1) + " left")
-                time.sleep(2)
-            playerTracker[player] -= 1
-            totalDice -= 1
-            decDice += 1
-            if playerTracker[player] == 0:
-                if self.verbose:
-                    print(player[1] + " is out of the game")
-                    time.sleep(1)
-                del diceRolls[player]
-                toBeDeleted += [player]
-            if self.verbose:
-                print()
-            if self.verbose and len(diceRolls) > 1:
-                print("There are " + str(totalDice) + " dice left on the table")
-                time.sleep(2)
-                print()
+            self.handleLoseDie(player, playerTracker, totalDice, diceRolls, toBeDeleted, prevMoves)
 
         # Previous player was wrong
         else:
@@ -202,31 +216,26 @@ class DiceGame:
                     print("But there is only  " + str(totalOfQuestioned) + "  " + str(questioned) + "!")
                 time.sleep(2)
                 print()
-                print(prevPlayer[1] + " loses a die and now has "
-                + str(playerTracker[prevPlayer]-1) + " left")
-                time.sleep(2)
-            playerTracker[prevPlayer] -= 1
-            totalDice -= 1
-            decDice += 1
-            if playerTracker[prevPlayer] == 0:
-                if self.verbose:
-                    print(prevPlayer[1] + " is out of the game")
-                del diceRolls[prevPlayer]
-                toBeDeleted += [prevPlayer]
-            if self.verbose:
-                print()
-            if self.verbose and len(diceRolls) > 1:
-                print("There are " + str(totalDice) + " dice left on the table")
-                time.sleep(2)
-                print()
+            self.handleLoseDie(prevPlayer, playerTracker, totalDice, diceRolls, toBeDeleted, prevMoves)
 
-        # Empties previous moves list to prep for next round
-        prevMoves.clear()
+        # There is one less die after every bluff call
+        return 1
 
-        # Re-rolls dice for everybody still in game
-        if len(diceRolls) > 1:
-            self.rollAllDice(diceRolls, playerTracker, toBeDeleted)
 
+
+    # Triggers bluff call then allows player who called bluff to make the next move 
+    # Returns an int indicating how much totalDice must be decremented
+    def step(
+        self,
+        prevMoves: list[tuple[Player, int, int]],
+        playerTracker: dict,
+        diceRolls: dict,
+        toBeDeleted: list,
+        player: tuple[Player, str],
+        totalDice: int
+    ) -> int:
+        decDice = self.handleBluff(prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
+        totalDice -= 1
         if player in diceRolls:
             # Ends iteration of players early if only one player remains
             if len(toBeDeleted) == len(playerTracker) - 1:
@@ -235,6 +244,14 @@ class DiceGame:
             if self.verbose:
                 print(player[1] + "'s turn")
                 time.sleep(1)
+                print("Here is your current roll:")
+                roll = []
+                for number in diceRolls[player].keys():
+                    for _ in range(diceRolls[player][number]):
+                        roll += [number]
+                print(roll)
+                time.sleep(1)
+                print()
 
             # Gets tuple representing move of current player
             move = player[0].getMove(
@@ -242,20 +259,26 @@ class DiceGame:
                 player[1],  # String name of current player
                 diceRolls[player].copy(),  # Defensive copy of player's dice roll
                 self.verbose,
-                totalDice
+                totalDice,
+                playerTracker[player]  # Num of dice player has
                 )
-
-            if  move[0].upper().strip() == 'MOVE':
-                decDice += self.chooseMove(move, prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
+            # Checks if move is valid tuple
+            if (isinstance(move, tuple) and len(move) == 2 and 
+                isinstance(move[0], int) and isinstance(move[1], int)):
+                # Handles move and tracks how much to decrement totalDice 
+                decDice += self.handleMove(move, prevMoves, playerTracker, diceRolls, 
+                toBeDeleted, player, totalDice)
             else:
-                decDice += self.chooseBadInput(prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
+                # Handles bad input and tracks how much to decrement totalDice
+                decDice += self.handleBadInput(prevMoves, playerTracker, diceRolls, 
+                toBeDeleted, player, totalDice)
 
         return decDice
 
 
 
     # Simulates one game
-    def simulate(self) -> None:
+    def simulate(self) -> str:
         totalDice = len(self.players) * self.numDice
 
         # Signals new game to players
@@ -293,27 +316,93 @@ class DiceGame:
                 if len(toBeDeleted) == len(playerTracker) - 1:
                     break
 
+                # This is needed in the special case where the first player in cycle calls 
+                # bluff and the last player is out of the game, but still in playerTracker
+                # as we cycle down to that last player
+                if player in toBeDeleted:
+                    continue
+
+                # Prints whose turn it is and an array of their dice roll 
                 if self.verbose:
                     print(player[1] + "'s turn")
                     time.sleep(1)
+                    print("Here is your current roll:")
+                    roll = []
+                    for number in diceRolls[player].keys():
+                        for _ in range(diceRolls[player][number]):
+                            roll += [number]
+                    print(roll)
+                    time.sleep(1)
+                    print()
 
-                # Gets tuple representing move of current player
-                move = player[0].getMove(
-                    prevMoves[:],  # Defensive copy of previous moves
-                    player[1],  # String name of current player
-                    diceRolls[player].copy(),  # Defensive copy of player's dice roll
-                    self.verbose,
-                    totalDice
-                    )
+                decDice = 0
 
-                # Triggers the call made by player and tracks how much totalDice must be decremented 
-                if  move[0].upper().strip() == 'MOVE':
-                    decDice = self.chooseMove(move, prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
-                elif move[0].upper().strip() == 'CALL_BLUFF':
-                    decDice = self.chooseBluff(move, prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
+                # Allows for bluff call when there are previous moves
+                if prevMoves:
+                    # Requires player to return 1 to call bluff or return 0 to go on and make a move
+                    switch = player[0].getBluff(
+                        prevMoves[:],  # Defensive copy of previous moves
+                        player[1],  # String name of current player
+                        diceRolls[player].copy(),  # Defensive copy of player's dice roll
+                        self.verbose,
+                        totalDice,
+                        playerTracker[player]  # Num of dice player has
+                        )
+
+                    # Triggers bluff call
+                    if switch == 1:
+                        # Handles bluff call, allows player to make first move of next round,
+                        # and tracks how much to decrement totalDice
+                        decDice = self.step(prevMoves, playerTracker, diceRolls, 
+                        toBeDeleted, player, totalDice)
+
+                    # Triggers move
+                    elif switch == 0:
+                        # Gets tuple representing move of current player
+                        move = player[0].getMove(
+                            prevMoves[:],  # Defensive copy of previous moves
+                            player[1],  # String name of current player
+                            diceRolls[player].copy(),  # Defensive copy of player's dice roll
+                            self.verbose,
+                            totalDice,
+                            playerTracker[player]  # Num of dice player has
+                            )
+                        # Checks if move is valid tuple
+                        if (isinstance(move, tuple) and len(move) == 2 and 
+                            isinstance(move[0], int) and isinstance(move[1], int)):
+                            # Handles move and tracks how much to decrement totalDice 
+                            decDice = self.handleMove(move, prevMoves, playerTracker, diceRolls, 
+                            toBeDeleted, player, totalDice)
+                        else:
+                            # Handles bad input and tracks how much to decrement totalDice
+                            decDice = self.handleBadInput(prevMoves, playerTracker, diceRolls, 
+                            toBeDeleted, player, totalDice)
+
+                    # Triggers bad input 
+                    else:
+                        if self.verbose:
+                            print("Players must return 1 to call bluff or 0 to continue and make a move")
+                        # Handles bad input and tracks how much to decrement totalDice
+                        decDice = self.handleBadInput(prevMoves, playerTracker, diceRolls, 
+                        toBeDeleted, player, totalDice)
+
+
+                # Does not allow for bluff call at beginning of a round
                 else:
-                    decDice = self.chooseBadInput(prevMoves, playerTracker, diceRolls, toBeDeleted, player, totalDice)
-                
+                    # Gets tuple representing move of current player
+                    move = player[0].getMove(
+                        prevMoves[:],  # Defensive copy of previous moves
+                        player[1],  # String name of current player
+                        diceRolls[player].copy(),  # Defensive copy of player's dice roll
+                        self.verbose,
+                        totalDice,
+                        playerTracker[player]  # Num of dice player has
+                        )
+                    # Handles move and tracks how much to decrement totalDice
+                    decDice = self.handleMove(move, prevMoves, playerTracker, diceRolls, 
+                    toBeDeleted, player, totalDice)
+
+
                 # Decrements total dice if necessary
                 totalDice -= decDice
 
@@ -327,85 +416,11 @@ class DiceGame:
         for player in playerTracker.keys():
             winner = player[1]
 
-        self.scores[winner] += 1
+        # Prints winner if verbose
         if self.verbose:
             print("GAME OVER")
             time.sleep(1)
             print("The winner is " + winner + "!")
             print()
-            print('---------')
-            print('Scores:')
-            self.scores = dict(sorted(self.scores.items(), key = lambda kv: kv[1], reverse = True))
-            for name, score in self.scores.items():
-                print(name, '\t', score)
-            print('---------')
-            time.sleep(4)
-            print()
-
-
-
-
-if __name__ == "__main__":
-    # Read in game variables
-    players = []
-    scores = {}
-    with open(argv[1]) as file:
-        numGames = int(file.readline())
-        numDice = int(file.readline())
-
-        # Verbose MUST be True if there is a Human player type
-        verbose = bool(file.readline())
-
-        # Collect should most likely be the opposite of verbose
-        # unless data is being collected on a Human player type 
-        collect = bool(file.readline())
-
-        # Read in list of players with their types and names
-        # Initialize scores to 0
-        seen = set()
-        for line in file:
-            temp = line.split()
-            type = temp[0].lower()  # converts to lowercase for easy string comparison
-            name = " ".join(temp[1:])
-            scores[name] = 0
-
-            # Checks if players have the same name
-            if name in seen:
-                print('Two players cannot have the same name.\n\
-                    Please fix configurations.')
-                exit()
-            else:
-                seen.add(name)
-
-            if type == "human":
-                players.append((Human(), name))
-            elif type == "dumbstatistician":
-                players.append((DumbStatistician(), name))
-            elif type == "smartstatistician":
-                players.append((SmartStatistician(), name))
-            else:
-                print('One of the player types provided does not exist as a type.\n\
-                    Please fix configurations.')
-
-    for _ in range(numGames):
-        try:
-            DiceGame(numDice, verbose, collect, players, scores).simulate()
-        except ValueError as ve:
-            print(ve)
-            exit()
-        except AssertionError as ae:
-            print(ae)
-            exit()
-    
-    # Turns scores into win percentages 
-    winRates = {}
-    for name, score in scores.items():
-        winRates[name] = (score / numGames) * 100
-
-    # Sorts from highest win percentage to lowest
-    winRates = dict(sorted(winRates.items(), key = lambda kv: kv[1], reverse = True))
-
-    # Prints win rates rounded to two decimal places
-    print('Win rates:')
-    for name, rate in winRates.items():
-        print(name, '\t', '%0.2f' % rate, '%')
+        
+        return winner

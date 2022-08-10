@@ -3,6 +3,17 @@
 class Player:
     # Default constructor called during compilation
 
+    def getBluff(
+        self,
+        prevMoves: list[tuple[tuple['Player', str], int, int]], 
+        currentPlayer: str, 
+        currentRoll: dict,
+        verbose: bool,
+        totalDice: int,
+        numOwnDice: int
+    ) -> int:
+        pass
+
     # Returns tuple with the 0th index being a int indicating a move or a bluff call
     # The optional two indices that follow represent quantity and number, respectively
     def getMove(
@@ -11,6 +22,7 @@ class Player:
         currentPlayer: str, 
         currentRoll: dict,
         verbose: bool,
-        totalDice: int
-        ) -> tuple[str, int, int]:
+        totalDice: int,
+        numOwnDice : int
+    ) -> tuple[int, int]:
         pass
