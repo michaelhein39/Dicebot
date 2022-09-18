@@ -40,10 +40,18 @@ def parse(configFile: str) -> tuple[int, int, bool, bool, list]:
             # Matches type given to an existing player type class
             if type == "human":
                 players.append((Human(), name))
-            elif type == "dumbstatistician":
-                players.append((DumbStatistician(), name))
-            elif type == "smartstatistician":
-                players.append((SmartStatistician(), name))
+            elif type == "conservativestat":
+                players.append((ConservativeStat(), name))
+            elif type == "aggressivelowlevelstat":
+                players.append((AggressiveLowLevelStat(), name))
+            elif type == "aggressivehighlevelstat":
+                players.append((AggressiveHighLevelStat(), name))
+            elif type == "conditionallowlevelstat":
+                players.append((ConditionalLowLevelStat(), name))
+            elif type == "conditionalhighlevelstat":
+                players.append((ConditionalHighLevelStat(), name))
+            elif type == "supremebot":
+                players.append((SupremeBot(), name))
             else:
                 print("One of the player types provided does not exist as a type ... "
                     + "Please fix configurations")

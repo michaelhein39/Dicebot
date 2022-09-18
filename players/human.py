@@ -6,9 +6,7 @@ import time
 class Human(Player):
     # Default constructor called during compilation
 
-
-
-    # Returns 1 to call bluff or 0 to NOT call bluff
+    # Returns 1 to indicate bluff call, or 0 to indicate no bluff call 
     def getBluff(
         self,
         prevMoves: list[tuple[tuple[Player, str], int, int]],
@@ -63,7 +61,9 @@ class Human(Player):
         currentRoll: dict,
         verbose: bool,
         totalDice: int,
-        numOwnDice: int
+        numOwnDice: int,
+        numPlayers: int,
+        updatedPlayerTracker: dict
     ) -> tuple[int, int]:
         print("For your move, enter the quantity desired, then in another line enter the dice number desired")
 

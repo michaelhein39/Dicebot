@@ -4,5 +4,9 @@
 # dice.cfg are matched to a class here
 
 from players.human import Human
-from players.dumbstatistician import DumbStatistician
-from players.smartstatistician import SmartStatistician
+from players.conservativestat import ConservativeStat
+from players.aggressivelowlevelstat import AggressiveLowLevelStat
+from players.aggressivehighlevelstat import AggressiveHighLevelStat
+from players.conditionallowlevelstat import ConditionalLowLevelStat
+from players.conditionalhighlevelstat import ConditionalHighLevelStat
+from players.supremebot import SupremeBot

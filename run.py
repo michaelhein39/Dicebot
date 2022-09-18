@@ -18,6 +18,20 @@ if __name__ == "__main__":
     for player in players:
         scores[player[1]] = 0
 
+    if collect:
+        with open(argv[2], "a") as file:
+            file.write("totalDice,")
+            file.write("player,")
+            file.write("numPlayerDice,")
+            file.write("quantityDeclared,")
+            file.write("diceNumDeclared,")
+            file.write("1s,")
+            file.write("2s,")
+            file.write("3s,")
+            file.write("4s,")
+            file.write("5s,")
+            file.write("6s\n")
+
     for _ in range(numGames):
         try:
             random.shuffle(players)

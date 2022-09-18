@@ -253,6 +253,14 @@ class DiceGame:
                 time.sleep(1)
                 print()
 
+            # Copies playerTracker, minus the players who are out
+            playerTrackerCopy = {}
+            for player_ in playerTracker.keys():
+                if player_ in toBeDeleted:
+                    continue
+                # Inserts pairs into the copy with just the string name as the key
+                playerTrackerCopy[player_[1]] = playerTracker[player_]
+
             # Gets tuple representing move of current player
             move = player[0].getMove(
                 prevMoves[:],  # Defensive copy of previous moves
@@ -260,7 +268,9 @@ class DiceGame:
                 diceRolls[player].copy(),  # Defensive copy of player's dice roll
                 self.verbose,
                 totalDice,
-                playerTracker[player]  # Num of dice player has
+                playerTracker[player],  # Num of dice player has
+                len(diceRolls),  # Num of players left
+                playerTrackerCopy  # Players in the game and how many dice they have 
                 )
             # Checks if move is valid tuple
             if (isinstance(move, tuple) and len(move) == 2 and 
@@ -337,6 +347,14 @@ class DiceGame:
 
                 decDice = 0
 
+                # Copies playerTracker, minus the players who are out
+                playerTrackerCopy = {}
+                for player_ in playerTracker.keys():
+                    if player_ in toBeDeleted:
+                        continue
+                    # Inserts pairs into the copy with just the string name as the key
+                    playerTrackerCopy[player_[1]] = playerTracker[player_]
+
                 # Allows for bluff call when there are previous moves
                 if prevMoves:
                     # Requires player to return 1 to call bluff or return 0 to go on and make a move
@@ -365,7 +383,9 @@ class DiceGame:
                             diceRolls[player].copy(),  # Defensive copy of player's dice roll
                             self.verbose,
                             totalDice,
-                            playerTracker[player]  # Num of dice player has
+                            playerTracker[player],  # Num of dice player has
+                            len(diceRolls),  # Num of players left
+                            playerTrackerCopy  # Players in the game and how many dice they have 
                             )
                         # Checks if move is valid tuple
                         if (isinstance(move, tuple) and len(move) == 2 and 
@@ -396,7 +416,9 @@ class DiceGame:
                         diceRolls[player].copy(),  # Defensive copy of player's dice roll
                         self.verbose,
                         totalDice,
-                        playerTracker[player]  # Num of dice player has
+                        playerTracker[player],  # Num of dice player has
+                        len(diceRolls),  # Num of players left
+                        playerTrackerCopy  # Players in the game and how many dice they have 
                         )
                     # Handles move and tracks how much to decrement totalDice
                     decDice = self.handleMove(move, prevMoves, playerTracker, diceRolls, 

@@ -1,6 +1,9 @@
 # Configuration files
 cfg/
 
+# Models
+models/
+
 # Outputs
 outputs/
 
